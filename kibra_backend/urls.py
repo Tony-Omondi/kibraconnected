@@ -19,4 +19,7 @@ urlpatterns = [
     ),
 
     path('api/posts/', include('posts.urls')),
+    path('api/jobs/', include('jobs.urls')),
+    path('api/marketplace/', include('marketplace.urls')),
+    path('api/campaigns/', include('campaigns.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
