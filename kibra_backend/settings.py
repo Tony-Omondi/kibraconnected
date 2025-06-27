@@ -1,7 +1,3 @@
-"""
-Django settings for kibra_backend project.
-"""
-
 from pathlib import Path
 from datetime import timedelta
 
@@ -14,7 +10,7 @@ SECRET_KEY = 'django-insecure-1wg9jh1z_ejjddwio&o=uvw#+!rx**q-=9-s2(bzz7$9*6@25s
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['192.168.88.85', '127.0.0.1', '192.168.0.137']
 
 # Application definition
 INSTALLED_APPS = [
@@ -80,12 +76,21 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 # django-allauth settings
-ACCOUNT_AUTHENTICATION_METHOD = 'email'
-ACCOUNT_EMAIL_REQUIRED = True
+REST_AUTH = {
+    'LOGIN_METHODS': ['username'],
+    'REGISTER_SERIALIZER': 'accounts.serializers.CustomRegisterSerializer',
+    'USE_JWT': True,
+}
+
+ACCOUNT_LOGIN_METHODS = ['email']
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
-ACCOUNT_USERNAME_REQUIRED = False
-LOGIN_REDIRECT_URL = 'kibra://verify-email/'  # Redirect to React Native app
-ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3
+ACCOUNT_CONFIRM_EMAIL_ON_GET = False
+ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = '/api/verify-email/'
+ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = '/api/verify-email/'
+ACCOUNT_ADAPTER = "allauth.account.adapter.DefaultAccountAdapter"  # Updated to custom adapter
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = False
+ACCOUNT_EMAIL_CONFIRMATION_COOLDOWN = 180
 
 # Email settings
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -93,23 +98,19 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'nitonito598@gmail.com'
-EMAIL_HOST_PASSWORD = 'ouuippiqxvunrffy'  # Replace with your App Password
+EMAIL_HOST_PASSWORD = 'ouuippiqxvunrffy'
 
-# Google OAuth settings
+SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'http://127.0.0.1:8000/api/accounts/social/google/'
+
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'APP': {
-            'client_id': 'your-real-google-client-id',  # Replace
-            'secret': 'your-real-google-client-secret',  # Replace
+            'client_id': '532809781253-39iuhvpkej6b2s3i17aqeiukrfl324el.apps.googleusercontent.com',
+            'secret': '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',
             'key': ''
         },
-        'SCOPE': [
-            'profile',
-            'email',
-        ],
-        'AUTH_PARAMS': {
-            'access_type': 'online',
-        }
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
     }
 }
 
