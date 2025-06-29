@@ -3,10 +3,14 @@ from django.urls import path, include, re_path
 from allauth.account.views import confirm_email
 from django.conf import settings
 from django.conf.urls.static import static
-from accounts.views import account_inactive
 from accounts.views import account_inactive, verify_email
+from rest_framework.routers import DefaultRouter
+from accounts.views import UserViewSet, ProfileViewSet, FollowViewSet
 
-
+router = DefaultRouter()
+router.register(r'api/accounts/users', UserViewSet, basename='users')
+router.register(r'api/accounts/profiles', ProfileViewSet, basename='profiles')
+router.register(r'api/accounts/follows', FollowViewSet, basename='follows')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -32,4 +36,4 @@ urlpatterns = [
     path('api/notifications/', include('notifications.urls')),
     path('api/ads/', include('ads.urls')),
     path("account/inactive/", account_inactive, name="account_inactive"),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + router.urls  # Include router URLs

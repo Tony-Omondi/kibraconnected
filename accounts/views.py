@@ -7,6 +7,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import Profile, Follow
 from .serializers import UserSerializer, ProfileSerializer, FollowSerializer
+from django.core.mail import send_mail
+from django.conf import settings
+import random
+import string
 
 User = get_user_model()
 
@@ -104,7 +108,7 @@ def verify_email(request):
     try:
         user = User.objects.get(verification_code=code)
         user.is_email_verified = True
-        user.is_active = True                      # ✅ activate user upon verification
+        user.is_active = True  # Already active on creation, but ensure consistency
         user.verification_code = None
         user.save()
         return Response({'detail': 'Email verified successfully.'})
@@ -141,12 +145,6 @@ def login_view(request):
             status=status.HTTP_403_FORBIDDEN
         )
 
-    if not user.is_active:
-        return Response(
-            {'error': 'Your account is disabled. Contact support.'},
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
     refresh = RefreshToken.for_user(user)
     
     return Response({
@@ -160,6 +158,61 @@ def login_view(request):
         'refresh': str(refresh),
     })
 
-# ✅ Inactive account message
+# ✅ Forgot Password - Request Reset Code
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def forgot_password(request):
+    email = request.data.get('email')
+    if not email:
+        return Response(
+            {'error': 'Email is required.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    try:
+        user = User.objects.get(email=email)
+        reset_code = ''.join(random.choices(string.digits, k=6))
+        user.verification_code = reset_code  # Reuse verification_code field for reset
+        user.save()
+
+        send_mail(
+            'Password Reset Code',
+            f'Your password reset code is: {reset_code}',
+            settings.EMAIL_HOST_USER,
+            [user.email],
+            fail_silently=False,
+        )
+        return Response({'detail': 'Reset code sent to your email.'})
+    except User.DoesNotExist:
+        return Response(
+            {'error': 'No user found with this email.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+# ✅ Reset Password
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def reset_password(request):
+    email = request.data.get('email')
+    code = request.data.get('verification_code')
+    new_password = request.data.get('new_password')
+
+    if not email or not code or not new_password:
+        return Response(
+            {'error': 'Email, verification code, and new password are required.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    try:
+        user = User.objects.get(email=email, verification_code=code)
+        user.set_password(new_password)
+        user.verification_code = None  # Clear the code after reset
+        user.save()
+        return Response({'detail': 'Password reset successfully.'})
+    except User.DoesNotExist:
+        return Response(
+            {'error': 'Invalid email or verification code.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+# ✅ Inactive account message (can be removed if no longer relevant)
 def account_inactive(request):
     return JsonResponse({"detail": "Your account is inactive. Please verify your email."}, status=403)
