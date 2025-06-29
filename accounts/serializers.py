@@ -80,7 +80,7 @@ class CustomRegisterSerializer(RegisterSerializer):
         user.role = 'user'  # Set default role
         verification_code = ''.join(random.choices(string.digits, k=6))
         user.verification_code = verification_code
-        user.is_active = False  # Require verification
+        user.is_active = True  # Set active upon creation as requested
         user.save()
 
         # Send verification code via email

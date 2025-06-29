@@ -2,21 +2,22 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from django.http import JsonResponse
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, authenticate
+from rest_framework.permissions import AllowAny
+from rest_framework_simplejwt.tokens import RefreshToken
 from .models import Profile, Follow
 from .serializers import UserSerializer, ProfileSerializer, FollowSerializer
-import random
-from django.core.mail import send_mail
-from rest_framework.permissions import AllowAny
 
 User = get_user_model()
 
+# ✅ Permission for owners or admins
 class IsOwnerOrReadOnly(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
             return True
         return obj == request.user or request.user.role == 'admin'
 
+# ✅ User ViewSet
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -25,6 +26,7 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return User.objects.filter(is_email_verified=True)
 
+# ✅ Profile ViewSet
 class ProfileViewSet(viewsets.ModelViewSet):
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
@@ -36,6 +38,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Profile.objects.filter(user__is_email_verified=True)
 
+# ✅ Follow ViewSet
 class FollowViewSet(viewsets.ModelViewSet):
     queryset = Follow.objects.all()
     serializer_class = FollowSerializer
@@ -88,6 +91,7 @@ class FollowViewSet(viewsets.ModelViewSet):
         follows = Follow.objects.filter(follower_id=user_id)
         return Response(FollowSerializer(follows, many=True).data)
 
+# ✅ Email verification endpoint
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def verify_email(request):
@@ -98,8 +102,9 @@ def verify_email(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     try:
-        user = User.objects.get(verification_code=code)  # ✅ fixed line
+        user = User.objects.get(verification_code=code)
         user.is_email_verified = True
+        user.is_active = True                      # ✅ activate user upon verification
         user.verification_code = None
         user.save()
         return Response({'detail': 'Email verified successfully.'})
@@ -109,6 +114,52 @@ def verify_email(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+# ✅ Login endpoint
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login_view(request):
+    email = request.data.get('email')
+    password = request.data.get('password')
 
+    if email is None or password is None:
+        return Response(
+            {'error': 'Please provide both email and password.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    user = authenticate(request, email=email, password=password)
+    
+    if not user:
+        return Response(
+            {'error': 'Unable to log in with provided credentials.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if not user.is_email_verified:
+        return Response(
+            {'error': 'Please verify your email before logging in.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    if not user.is_active:
+        return Response(
+            {'error': 'Your account is disabled. Contact support.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    refresh = RefreshToken.for_user(user)
+    
+    return Response({
+        'user': {
+            'id': user.id,
+            'email': user.email,
+            'username': user.username,
+            'role': user.role,
+        },
+        'access': str(refresh.access_token),
+        'refresh': str(refresh),
+    })
+
+# ✅ Inactive account message
 def account_inactive(request):
     return JsonResponse({"detail": "Your account is inactive. Please verify your email."}, status=403)

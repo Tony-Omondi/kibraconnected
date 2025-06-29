@@ -10,7 +10,7 @@ SECRET_KEY = 'django-insecure-1wg9jh1z_ejjddwio&o=uvw#+!rx**q-=9-s2(bzz7$9*6@25s
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.88.85', '127.0.0.1', '192.168.0.137']
+ALLOWED_HOSTS = ['192.168.88.85', '127.0.0.1', '192.168.0.137', '192.168.150.162']
 
 # Application definition
 INSTALLED_APPS = [
@@ -59,11 +59,9 @@ CORS_ALLOW_ALL_ORIGINS = True  # Restrict in production
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'dj_rest_auth.jwt_auth.JWTCookieAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.TokenAuthentication',
     ],
 }
+
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
@@ -71,9 +69,11 @@ SIMPLE_JWT = {
 }
 
 AUTHENTICATION_BACKENDS = [
+    'accounts.backends.EmailBackend',     # ✅ add this first
     'django.contrib.auth.backends.ModelBackend',
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
+
 
 # django-allauth settings
 REST_AUTH = {
@@ -84,7 +84,7 @@ REST_AUTH = {
 
 ACCOUNT_LOGIN_METHODS = ['email']
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_CONFIRM_EMAIL_ON_GET = False
 ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = '/api/verify-email/'
 ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = '/api/verify-email/'
