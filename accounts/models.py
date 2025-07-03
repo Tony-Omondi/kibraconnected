@@ -50,7 +50,7 @@ class Follow(models.Model):
         unique_together = ('follower', 'followed')
         indexes = [
             models.Index(fields=['follower', 'followed']),
-            models.Index(fields=['followed']),  # Added for better query performance
+            models.Index(fields=['followed']),  # Added for better query performance 
         ]
         constraints = [
             models.CheckConstraint(
