@@ -6,24 +6,25 @@ from accounts.models import User
 class CommentSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     user_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(), source='user', write_only=True
+        queryset=User.objects.all(), source='user', write_only=True, required=False
     )
+    post = serializers.PrimaryKeyRelatedField(queryset=Post.objects.all())
 
     class Meta:
         model = Comment
         fields = ['id', 'post', 'user', 'user_id', 'text', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'user']
 
 class LikeSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     user_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(), source='user', write_only=True
+        queryset=User.objects.all(), source='user', write_only=True, required=False
     )
 
     class Meta:
         model = Like
         fields = ['id', 'post', 'user', 'user_id']
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'user']
 
 class PostSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)

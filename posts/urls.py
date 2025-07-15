@@ -9,4 +9,5 @@ router.register(r'likes', LikeViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('likes/<int:post_id>/toggle/', LikeViewSet.as_view({'post': 'toggle'}), name='like-toggle'),
 ]
