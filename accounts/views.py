@@ -1,4 +1,4 @@
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, filters
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from django.http import JsonResponse
@@ -11,6 +11,8 @@ from django.core.mail import send_mail
 from django.conf import settings
 import random
 import string
+from rest_framework.exceptions import ValidationError, PermissionDenied, NotFound
+from django.shortcuts import get_object_or_404
 
 User = get_user_model()
 
@@ -21,6 +23,7 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
             return True
         return obj == request.user or request.user.role == 'admin'
 
+
 # ✅ User ViewSet
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -30,17 +33,42 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return User.objects.filter(is_email_verified=True)
 
-# ✅ Profile ViewSet
+
+# ✅ Profile ViewSet (UPDATED!)
 class ProfileViewSet(viewsets.ModelViewSet):
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Profile.objects.filter(user__is_email_verified=True)
+        """
+        Optionally filter profiles by user_id query param.
+        """
+        user_id = self.request.query_params.get('user_id')
+        if user_id:
+            return Profile.objects.filter(user__id=user_id)
+        return Profile.objects.filter(user=self.request.user)
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        if instance.user != self.request.user:
+            raise PermissionDenied("You cannot edit someone else's profile.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.user != self.request.user:
+            raise PermissionDenied("You cannot delete someone else's profile.")
+        instance.delete()
+
+    @action(detail=False, methods=['get'], url_path='user/(?P<user_id>[^/.]+)')
+    def get_by_user_id(self, request, user_id=None):
+        """
+        GET /api/accounts/profiles/user/<user_id>/
+        """
+        profile = get_object_or_404(Profile, user__id=user_id)
+        serializer = self.get_serializer(profile)
+        return Response(serializer.data)
+
 
 # ✅ Follow ViewSet
 class FollowViewSet(viewsets.ModelViewSet):
@@ -95,6 +123,7 @@ class FollowViewSet(viewsets.ModelViewSet):
         follows = Follow.objects.filter(follower_id=user_id)
         return Response(FollowSerializer(follows, many=True).data)
 
+
 # ✅ Email verification endpoint
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -108,7 +137,7 @@ def verify_email(request):
     try:
         user = User.objects.get(verification_code=code)
         user.is_email_verified = True
-        user.is_active = True  # Already active on creation, but ensure consistency
+        user.is_active = True
         user.verification_code = None
         user.save()
         return Response({'detail': 'Email verified successfully.'})
@@ -117,6 +146,7 @@ def verify_email(request):
             {'error': 'Invalid verification code.'},
             status=status.HTTP_400_BAD_REQUEST
         )
+
 
 # ✅ Login endpoint
 @api_view(['POST'])
@@ -130,15 +160,15 @@ def login_view(request):
             {'error': 'Please provide both email and password.'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     user = authenticate(request, email=email, password=password)
-    
+
     if not user:
         return Response(
             {'error': 'Unable to log in with provided credentials.'},
             status=status.HTTP_400_BAD_REQUEST
         )
-    
+
     if not user.is_email_verified:
         return Response(
             {'error': 'Please verify your email before logging in.'},
@@ -146,7 +176,7 @@ def login_view(request):
         )
 
     refresh = RefreshToken.for_user(user)
-    
+
     return Response({
         'user': {
             'id': user.id,
@@ -157,6 +187,7 @@ def login_view(request):
         'access': str(refresh.access_token),
         'refresh': str(refresh),
     })
+
 
 # ✅ Forgot Password - Request Reset Code
 @api_view(['POST'])
@@ -171,7 +202,7 @@ def forgot_password(request):
     try:
         user = User.objects.get(email=email)
         reset_code = ''.join(random.choices(string.digits, k=6))
-        user.verification_code = reset_code  # Reuse verification_code field for reset
+        user.verification_code = reset_code
         user.save()
 
         send_mail(
@@ -187,6 +218,7 @@ def forgot_password(request):
             {'error': 'No user found with this email.'},
             status=status.HTTP_404_NOT_FOUND
         )
+
 
 # ✅ Reset Password
 @api_view(['POST'])
@@ -204,7 +236,7 @@ def reset_password(request):
     try:
         user = User.objects.get(email=email, verification_code=code)
         user.set_password(new_password)
-        user.verification_code = None  # Clear the code after reset
+        user.verification_code = None
         user.save()
         return Response({'detail': 'Password reset successfully.'})
     except User.DoesNotExist:
@@ -213,6 +245,7 @@ def reset_password(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-# ✅ Inactive account message (can be removed if no longer relevant)
+
+# ✅ Inactive account message
 def account_inactive(request):
     return JsonResponse({"detail": "Your account is inactive. Please verify your email."}, status=403)

@@ -1,4 +1,4 @@
-#!/home/nito/Desktop/kibra/venv310/bin/python3.10
+#!/home/nito/Desktop/kibraconnected/venv310/bin/python3.10
 # -*- coding: utf-8 -*-
 import re
 import sys

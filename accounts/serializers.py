@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from dj_rest_auth.registration.serializers import RegisterSerializer
 from .models import User, Profile, Follow
+from posts.models import Post
+
 from django.core.mail import send_mail
 from django.conf import settings
 import random
@@ -19,13 +21,40 @@ class UserSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'is_email_verified', 'verification_code']
 
+class SimplePostSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Post
+        fields = ['id', 'title', 'content', 'created_at', 'image']
+
 class ProfileSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
+    user_data = UserSerializer(source='user', read_only=True)
+    followers_count = serializers.SerializerMethodField()
+    following_count = serializers.SerializerMethodField()
+    posts = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
-        fields = ['id', 'user', 'bio', 'location', 'profile_picture']
-        read_only_fields = ['id', 'user']
+        fields = [
+            'id',
+            'user_data',
+            'bio',
+            'location',
+            'profile_picture',
+            'followers_count',
+            'following_count',
+            'posts',
+        ]
+        read_only_fields = ['id', 'user_data', 'followers_count', 'following_count', 'posts']
+
+    def get_followers_count(self, obj):
+        return Follow.objects.filter(followed=obj.user).count()
+
+    def get_following_count(self, obj):
+        return Follow.objects.filter(follower=obj.user).count()
+
+    def get_posts(self, obj):
+        user_posts = Post.objects.filter(author=obj.user)
+        return SimplePostSerializer(user_posts, many=True).data
 
 class FollowSerializer(serializers.ModelSerializer):
     follower = UserSerializer(read_only=True)
@@ -77,13 +106,12 @@ class CustomRegisterSerializer(RegisterSerializer):
 
     def save(self, request):
         user = super().save(request=request)
-        user.role = 'user'  # Set default role
+        user.role = 'user'
         verification_code = ''.join(random.choices(string.digits, k=6))
         user.verification_code = verification_code
-        user.is_active = True  # Set active upon creation as requested
+        user.is_active = True
         user.save()
 
-        # Send verification code via email
         send_mail(
             'Email Verification Code',
             f'Your verification code is: {verification_code}',
