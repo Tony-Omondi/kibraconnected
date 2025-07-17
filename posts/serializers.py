@@ -28,9 +28,6 @@ class LikeSerializer(serializers.ModelSerializer):
 
 class PostSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
-    author_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(), source='author', write_only=True
-    )
     comments = CommentSerializer(many=True, read_only=True)
     likes_count = serializers.SerializerMethodField()
     comments_count = serializers.SerializerMethodField()
@@ -40,7 +37,6 @@ class PostSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'author',
-            'author_id',
             'content',
             'image',
             'created_at',
@@ -48,10 +44,15 @@ class PostSerializer(serializers.ModelSerializer):
             'likes_count',
             'comments_count',
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'author', 'created_at', 'comments', 'likes_count', 'comments_count']
 
     def get_likes_count(self, obj):
         return obj.likes.count()
 
     def get_comments_count(self, obj):
         return obj.comments.count()
+
+    def validate(self, data):
+        if not data.get('content') and not data.get('image'):
+            raise serializers.ValidationError("At least one of content or image must be provided.")
+        return data
