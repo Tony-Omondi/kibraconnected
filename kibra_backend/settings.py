@@ -6,11 +6,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-1wg9jh1z_ejjddwio&o=uvw#+!rx**q-=9-s2(bzz7$9*6@25s'
+# Paystack API Keys
+
+PAYSTACK_SECRET_KEY = 'sk_live_dbeff6010b7f44412d828fa5120250d281e6283b'
+PAYSTACK_PUBLIC_KEY = 'pk_live_9a3bfa00fea6b78a6d3fb3538639083478427257'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.88.85', '127.0.0.1', '192.168.100.40', '10.35.136.162', '54.146.190.174']
+ALLOWED_HOSTS = ['192.168.88.85', '127.0.0.1', '192.168.100.234', '10.35.136.162', '54.146.190.174']
 
 # Application definition
 INSTALLED_APPS = [
